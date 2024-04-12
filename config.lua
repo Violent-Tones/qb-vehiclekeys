@@ -16,6 +16,10 @@ Config.LockToggleDist = 8.0
 Config.LockNPCDrivingCars = true -- Lock state for NPC cars being driven by NPCs [true = locked, false = unlocked]
 Config.LockNPCParkedCars = true -- Lock state for NPC parked cars [true = locked, false = unlocked]
 Config.UseKeyfob = false -- you can set this true if you dont need ui
+-- NPC Vehicle Chances
+Config.ChanceNPCDrivingCarsUnlocked = 60
+Config.ChanceNPCParkedCarsUnlocked = 35
+
 -- Lockpick Settings
 Config.RemoveLockpickNormal = 0.5 -- Chance to remove lockpick on fail
 Config.RemoveLockpickAdvanced = 0.2 -- Chance to remove advanced lockpick on fail

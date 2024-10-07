@@ -53,7 +53,12 @@ local function robKeyLoop()
                                 end)
                             end
                         elseif Config.LockNPCDrivingCars then
-                            TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(entering), 2)
+                            local state = Entity(entering).state
+                            if state.locked == nil then
+                                local chance = math.random(1,100)
+                                local locked = chance <= Config.ChanceNPCDrivingCarsUnlocked and 1 or 2
+                                TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(entering), locked)
+                            end
                         else
                             TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(entering), 1)
                             TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
@@ -71,7 +76,12 @@ local function robKeyLoop()
                         QBCore.Functions.TriggerCallback('qb-vehiclekeys:server:checkPlayerOwned', function(playerOwned)
                             if not playerOwned then
                                 if Config.LockNPCParkedCars then
-                                    TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(entering), 2)
+                                    local state = Entity(entering).state
+                                    if state.locked == nil then
+                                        local chance = math.random(1,100)
+                                        local locked = chance <= Config.ChanceNPCParkedCarsUnlocked and 1 or 2
+                                        TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(entering), locked)
+                                    end
                                 else
                                     TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(entering), 1)
                                 end
@@ -271,25 +281,29 @@ RegisterNetEvent('lockpicks:UseLockpick', function(isAdvanced)
     if #(pos - GetEntityCoords(vehicle)) > 2.5 then return end
     if GetVehicleDoorLockStatus(vehicle) <= 0 then return end
 
+    lib.requestAnimDict('mp_arresting')
+    TaskPlayAnim(ped, "mp_arresting", "a_uncuff", 1.0 ,-1.0 , 5500, 0, 1, true, true, true)
     local difficulty = isAdvanced and 'easy' or 'medium' -- Easy for advanced lockpick, medium by default
-    local success = exports['qb-minigames']:Skillbar(difficulty)
+    local success = lib.skillCheck({'easy', difficulty, difficulty}, {'1', '2', '3', '4'})
+    StopAnimTask(ped, 'mp_arresting', 'a_uncuff', 2.0)
 
-    local chance = math.random()
     if success then
-        TriggerServerEvent('hud:server:GainStress', math.random(1, 4))
         lastPickedVehicle = vehicle
 
         if GetPedInVehicleSeat(vehicle, -1) == PlayerPedId() then
             TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', QBCore.Functions.GetPlate(vehicle))
         else
-            QBCore.Functions.Notify(Lang:t('notify.vlockpick'), 'success')
+            TriggerServerEvent("InteractSound_SV:PlayWithinDistance", 0.5, Config.LockToggleSound, 0.3)
+            QBCore.Functions.Notify(Lang:t("notify.vlockpick"), 'success')
             TriggerServerEvent('qb-vehiclekeys:server:setVehLockState', NetworkGetNetworkIdFromEntity(vehicle), 1)
         end
     else
-        TriggerServerEvent('hud:server:GainStress', math.random(1, 4))
-        AttemptPoliceAlert('steal')
+        QBCore.Functions.Notify('You faild to pick the door lock and get frustrated.', 'error')
+        TriggerServerEvent('hud:server:GainStress', math.random(2, 5))
+        AttemptPoliceAlert("steal")
     end
 
+    local chance = math.random()
     if isAdvanced then
         if chance <= Config.RemoveLockpickAdvanced then
             TriggerServerEvent('qb-vehiclekeys:server:breakLockpick', 'advancedlockpick')
@@ -602,33 +616,33 @@ end
 function Hotwire(vehicle, plate)
     local hotwireTime = math.random(Config.minHotwireTime, Config.maxHotwireTime)
     local ped = PlayerPedId()
+    local hotwireDict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@'
+    local hotwireAnim = 'machinic_loop_mechandplayer'
     IsHotwiring = true
 
     SetVehicleAlarm(vehicle, true)
     SetVehicleAlarmTimeLeft(vehicle, hotwireTime)
-    QBCore.Functions.Progressbar('hotwire_vehicle', Lang:t('progress.hskeys'), hotwireTime, false, true, {
-        disableMovement = true,
-        disableCarMovement = true,
-        disableMouse = false,
-        disableCombat = true
-    }, {
-        animDict = 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@',
-        anim = 'machinic_loop_mechandplayer',
-        flags = 16
-    }, {}, {}, function() -- Done
-        StopAnimTask(ped, 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', 'machinic_loop_mechandplayer', 1.0)
-        TriggerServerEvent('hud:server:GainStress', math.random(1, 4))
-        if (math.random() <= Config.HotwireChance) then
-            TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
-        else
-            QBCore.Functions.Notify(Lang:t('notify.fvlockpick'), 'error')
-        end
-        Wait(Config.TimeBetweenHotwires)
-        IsHotwiring = false
-    end, function() -- Cancel
-        StopAnimTask(ped, 'anim@amb@clubhouse@tutorial@bkr_tut_ig3@', 'machinic_loop_mechandplayer', 1.0)
-        IsHotwiring = false
-    end)
+
+    -- Skill check hotwiring mini-game
+    loadAnimDict(hotwireDict)
+    TaskPlayAnim(ped, hotwireDict, hotwireAnim, 3.0, 3.0, -1, 16, 0, false, false, false)
+    local random = math.random(1,3)
+    local easy = {'easy', 'easy', 'easy'}
+    local medium = {'easy', 'medium', 'medium'}
+    local hard = {'medium', 'medium', 'hard'}
+    local difficulty = random == 1 and easy or random == 2 and medium or hard
+    local success = lib.skillCheck(difficulty)
+
+    if success then
+        TriggerServerEvent('qb-vehiclekeys:server:AcquireVehicleKeys', plate)
+    else
+        TriggerServerEvent('hud:server:GainStress', math.random(2, 5))
+        QBCore.Functions.Notify(Lang:t("notify.fvlockpick"), "error")
+    end
+    StopAnimTask(ped, hotwireDict, hotwireAnim, 1.0)
+    Wait(Config.TimeBetweenHotwires)
+    -- End --
+
     SetTimeout(10000, function()
         AttemptPoliceAlert('steal')
     end)

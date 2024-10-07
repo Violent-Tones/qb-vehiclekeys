@@ -46,7 +46,9 @@ RegisterNetEvent('qb-vehiclekeys:server:breakLockpick', function(itemName)
 end)
 
 RegisterNetEvent('qb-vehiclekeys:server:setVehLockState', function(vehNetId, state)
-    SetVehicleDoorsLocked(NetworkGetEntityFromNetworkId(vehNetId), state)
+    local vehicle = NetworkGetEntityFromNetworkId(vehNetId)
+    Entity(vehicle).state.locked = state
+    SetVehicleDoorsLocked(vehicle, state)
 end)
 
 QBCore.Functions.CreateCallback('qb-vehiclekeys:server:GetVehicleKeys', function(source, cb)
